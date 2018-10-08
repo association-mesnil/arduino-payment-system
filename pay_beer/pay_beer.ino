@@ -30,8 +30,8 @@ MFRC522 mfrc522(SS_PIN, RST_PIN);
 // Authentication key
 MFRC522::MIFARE_Key key;
 
-// Card amount in EUR (WARNING: cannot be bigger then 255)
-int amount = 9;
+// Beer price in EUR (WARNING: cannot be bigger then 10)
+int beerPrice = 3;
 
 // Blocks to write (WARNING: be careful where you write)
 byte block = 4;
@@ -86,10 +86,11 @@ void loop() {
   Serial.println(F("A new card has appeared"));
   Serial.println(F("-----------------------------------------------------"));
 
-  // Check amount value
-  if (amount > 255 || amount < 0) {
-    Serial.print(F("Invalid amount, must be in [0, 255]: "));
-    Serial.println(amount);
+
+  // Check beer price value
+  if (beerPrice > 10 || beerPrice < 0) {
+    Serial.print(F("Invalid beerPrice, must be in [0, 10]: "));
+    Serial.println(beerPrice);
     halt();
     return;
   }
@@ -132,25 +133,59 @@ void loop() {
     return;
   }
 
-  // Write data to the block
-  byte amountData[] = {
+  // Read data from the block
+  Serial.print(F("Reading amount from card (block "));
+  Serial.print(block);
+  Serial.println(F(")"));
+  status = (MFRC522::StatusCode) mfrc522.MIFARE_Read(block, buffer, &size);
+  if (status != MFRC522::STATUS_OK) {
+    Serial.print(F("MIFARE_Read() failed: "));
+    Serial.println(mfrc522.GetStatusCodeName(status));
+  }
+  dump_byte_array_euros(buffer, 16);
+  dump_byte_array(buffer, 16);
+
+  // Check if remaining card amount is enough
+  int amount = (int) buffer[15];
+  if (amount >= beerPrice) {
+    Serial.print(F("Balance OK (card amount: "));
+    Serial.print(amount);
+    Serial.print(F(" EUR, beer price: "));
+    Serial.print(beerPrice);
+    Serial.println(F(")"));
+  } else {
+    Serial.print(F("Balance KO (card amount: "));
+    Serial.print(amount);
+    Serial.print(F(" EUR, beer price: "));
+    Serial.print(beerPrice);
+    Serial.println(F(" EUR)"));
+    halt();
+    return;
+  }
+
+  // Calculate balance and write to card
+  int balance = amount - beerPrice;
+  byte balanceData[] = {
     0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, byte(amount),
+    0x00, 0x00, 0x00, byte(balance),
   };
   Serial.print(F("Writing "));
-  Serial.print(amount);
+  Serial.print(balance);
   Serial.print(F(" EUR on card (block "));
   Serial.print(block);
   Serial.println(F(")"));
   status = (MFRC522::StatusCode) mfrc522.MIFARE_Write(
-      block, amountData, 16);
+      block, balanceData, 16);
   if (status != MFRC522::STATUS_OK) {
     Serial.println(F("MIFARE_Write() failed: "));
     Serial.println(mfrc522.GetStatusCodeName(status));
   }
   Serial.println(F("Write finished"));
+
+  // Pour beer
+  Serial.println(F("TODO HERE YOU POUR THE BEER"));
 
   // Read data from the block
   Serial.print(F("Reading amount from card (block "));
@@ -163,6 +198,10 @@ void loop() {
   }
   dump_byte_array_euros(buffer, 16);
   dump_byte_array(buffer, 16);
+
+  // Sleeping to avoid double pour
+  Serial.println(F("TODO YOU SLEEP FOR THE TIME IT TAKES TO POUR A BEER"));
+  delay(1000);
 
   // Halting this loop
   halt();
