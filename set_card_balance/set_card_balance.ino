@@ -30,8 +30,8 @@ MFRC522 mfrc522(SS_PIN, RST_PIN);
 // Authentication key
 MFRC522::MIFARE_Key key;
 
-// Card balance in EUR (WARNING: cannot be bigger then 255)
-const int balance = 9;
+// Card amount (WARNING: cannot be bigger then 255)
+const int amount = 3;
 
 // Blocks to write (WARNING: be careful where you write)
 const byte block = 4;
@@ -86,10 +86,10 @@ void loop() {
   Serial.println(F("A new card has appeared"));
   Serial.println(F("-----------------------------------------------------"));
 
-  // Check balance value
-  if (balance > 255 || balance < 0) {
-    Serial.print(F("Invalid balance, must be in [0, 255]: "));
-    Serial.println(balance);
+  // Check amount value
+  if (amount > 255 || amount < 0) {
+    Serial.print(F("Invalid amount, must be in [0, 255]: "));
+    Serial.println(amount);
     halt();
     return;
   }
@@ -137,11 +137,11 @@ void loop() {
     0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, byte(balance),
+    0x00, 0x00, 0x00, byte(amount),
   };
   Serial.print(F("Writing "));
-  Serial.print(balance);
-  Serial.print(F(" EUR on card (block "));
+  Serial.print(amount);
+  Serial.print(F(" on card (block "));
   Serial.print(block);
   Serial.println(F(")"));
   status = (MFRC522::StatusCode) mfrc522.MIFARE_Write(
@@ -161,7 +161,7 @@ void loop() {
     Serial.print(F("MIFARE_Read() failed: "));
     Serial.println(mfrc522.GetStatusCodeName(status));
   }
-  dump_byte_array_euros(buffer, 16);
+  dump_byte_array_decimal(buffer, 16);
   dump_byte_array(buffer, 16);
 
   // Halting this loop
@@ -191,13 +191,14 @@ void dump_byte_array(byte *buffer, byte bufferSize) {
 }
 
 /**
- * Dump a byte array as euros to serial.
+ * Dump a byte array as decimal to serial.
  */
-void dump_byte_array_euros(byte *buffer, byte bufferSize) {
+void dump_byte_array_decimal(byte *buffer, byte bufferSize) {
   for (byte i = 0; i < bufferSize; i++) {
     if (buffer[i] != 0x00) {
       Serial.print(buffer[i], DEC);
     }
   }
-  Serial.println(F(" EUR"));
+  Serial.println(F(""));
 }
+

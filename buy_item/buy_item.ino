@@ -19,6 +19,8 @@
 #include <SPI.h>
 #include <MFRC522.h>
 
+// Relay pin
+#define RELAY_PIN 8
 // Configurable, see typical pin layout above
 #define RST_PIN 9
 // Configurable, see typical pin layout above
@@ -29,9 +31,6 @@ MFRC522 mfrc522(SS_PIN, RST_PIN);
 
 // Authentication key
 MFRC522::MIFARE_Key key;
-
-// Price in EUR (WARNING: cannot be bigger then 10)
-const int price = 3;
 
 // Blocks to write (WARNING: be careful where you write)
 const byte block = 4;
@@ -65,6 +64,9 @@ void setup() {
   Serial.println(F("====================================================="));
   Serial.print(F("Using key:"));
   dump_byte_array(key.keyByte, MFRC522::MF_KEY_SIZE);
+
+  // Set relay pin to output
+  pinMode(RELAY_PIN, OUTPUT);
 }
 
 /**
@@ -86,15 +88,6 @@ void loop() {
   Serial.println(F("A new card has appeared"));
   Serial.println(F("-----------------------------------------------------"));
 
-
-  // Check beer price value
-  if (price > 10 || price < 0) {
-    Serial.print(F("Invalid price, must be in [0, 10]: "));
-    Serial.println(price);
-    halt();
-    return;
-  }
-
   // Check block value
   if (block != 4) {
     Serial.print(F("Invalid block, are you sure you want to change it?: "));
@@ -115,6 +108,7 @@ void loop() {
       && piccType != MFRC522::PICC_TYPE_MIFARE_1K
       && piccType != MFRC522::PICC_TYPE_MIFARE_4K) {
     Serial.println(F("This sample only works with MIFARE Classic cards."));
+    halt();
     return;
   }
 
@@ -130,6 +124,7 @@ void loop() {
   if (status != MFRC522::STATUS_OK) {
     Serial.println(F("PCD_Authenticate() failed: "));
     Serial.println(mfrc522.GetStatusCodeName(status));
+    halt();
     return;
   }
 
@@ -141,30 +136,28 @@ void loop() {
   if (status != MFRC522::STATUS_OK) {
     Serial.print(F("MIFARE_Read() failed: "));
     Serial.println(mfrc522.GetStatusCodeName(status));
+    halt();
+    return;
   }
-  dump_byte_array_euros(buffer, 16);
+  dump_byte_array_decimal(buffer, 16);
   dump_byte_array(buffer, 16);
 
   // Check if remaining card amount is enough
   int amount = (int) buffer[15];
-  if (amount >= price) {
+  if (amount > 0) {
     Serial.print(F("Balance OK (card amount: "));
     Serial.print(amount);
-    Serial.print(F(" EUR, beer price: "));
-    Serial.print(price);
     Serial.println(F(")"));
   } else {
     Serial.print(F("Balance KO (card amount: "));
     Serial.print(amount);
-    Serial.print(F(" EUR, beer price: "));
-    Serial.print(price);
-    Serial.println(F(" EUR)"));
+    Serial.println(F(")"));
     halt();
     return;
   }
 
   // Calculate balance and write to card
-  int balance = amount - price;
+  int balance = amount - 1;
   byte balanceData[] = {
     0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00,
@@ -173,7 +166,7 @@ void loop() {
   };
   Serial.print(F("Writing "));
   Serial.print(balance);
-  Serial.print(F(" EUR on card (block "));
+  Serial.print(F(" on card (block "));
   Serial.print(block);
   Serial.println(F(")"));
   status = (MFRC522::StatusCode) mfrc522.MIFARE_Write(
@@ -181,11 +174,19 @@ void loop() {
   if (status != MFRC522::STATUS_OK) {
     Serial.println(F("MIFARE_Write() failed: "));
     Serial.println(mfrc522.GetStatusCodeName(status));
+    halt();
+    return;
   }
   Serial.println(F("Write finished"));
 
-  // Pour beer
-  Serial.println(F("TODO YOU GIVE THE ITEM"));
+  // Send signal to relay pin
+  Serial.println(F("SENDING RELAY SIGNAL HIGH (1000 ms)"));
+  digitalWrite(RELAY_PIN, HIGH);
+
+  // Stop signal to relay PIN
+  delay(1000);
+  Serial.println(F("SENDING RELAY SIGNAL LOW"));
+  digitalWrite(RELAY_PIN, LOW);
 
   // Read data from the block
   Serial.print(F("Reading amount from card (block "));
@@ -195,13 +196,11 @@ void loop() {
   if (status != MFRC522::STATUS_OK) {
     Serial.print(F("MIFARE_Read() failed: "));
     Serial.println(mfrc522.GetStatusCodeName(status));
+    halt();
+    return;
   }
-  dump_byte_array_euros(buffer, 16);
+  dump_byte_array_decimal(buffer, 16);
   dump_byte_array(buffer, 16);
-
-  // Sleeping to avoid double pour
-  Serial.println(F("TODO YOU SLEEP TO GIVE THE ITEM"));
-  delay(1000);
 
   // Halting this loop
   halt();
@@ -230,13 +229,14 @@ void dump_byte_array(byte *buffer, byte bufferSize) {
 }
 
 /**
- * Dump a byte array as euros to serial.
+ * Dump a byte array as decimal to serial.
  */
-void dump_byte_array_euros(byte *buffer, byte bufferSize) {
+void dump_byte_array_decimal(byte *buffer, byte bufferSize) {
   for (byte i = 0; i < bufferSize; i++) {
     if (buffer[i] != 0x00) {
       Serial.print(buffer[i], DEC);
     }
   }
-  Serial.println(F(" EUR"));
+  Serial.println(F(""));
 }
+

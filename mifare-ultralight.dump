@@ -1,0 +1,23 @@
+Firmware Version: 0x88 = (clone)
+Scan PICC to see UID, SAK, type, and data blocks...
+Card UID: 04 C8 A0 A2 ED 4C 80
+Card SAK: 00
+PICC type: MIFARE Ultralight or Ultralight C
+Page  0  1  2  3
+  0   04 C8 A0 E4
+  1   A2 ED 4C 80
+  2   83 48 00 00
+  3   E1 10 12 00
+  4   01 03 A0 0C
+  5   34 03 00 FE
+  6   00 00 00 00
+  7   00 00 00 00
+  8   00 00 00 00
+  9   00 00 00 00
+ 10   00 00 00 00
+ 11   00 00 00 00
+ 12   00 00 00 00
+ 13   00 00 00 00
+ 14   00 00 00 00
+ 15   00 00 00 00
+
