@@ -19,11 +19,13 @@
 #include <SPI.h>
 #include <MFRC522.h>
 
-// Relay pin
-#define RELAY_PIN 8
-// Configurable, see typical pin layout above
+// Relay pin (input)
+#define RELAY_PIN_IN A5
+// Relay pin (output)
+#define RELAY_PIN_OUT 8
+// RFID card reset pin (output)
 #define RST_PIN 9
-// Configurable, see typical pin layout above
+// RFID card ss pin (output)
 #define SS_PIN 10
 
 // Create MFRC522 instance
@@ -66,7 +68,10 @@ void setup() {
   dump_byte_array(key.keyByte, MFRC522::MF_KEY_SIZE);
 
   // Set relay pin to output
-  pinMode(RELAY_PIN, OUTPUT);
+  pinMode(RELAY_PIN_OUT, OUTPUT);
+
+  // Set relay pin to intput
+  pinMode(RELAY_PIN_IN, INPUT_PULLUP);
 }
 
 /**
@@ -92,6 +97,18 @@ void loop() {
   if (block != 4) {
     Serial.print(F("Invalid block, are you sure you want to change it?: "));
     Serial.println(block);
+    halt();
+    return;
+  }
+
+  // Check if relay is active
+  int relayPinIn = analogRead(RELAY_PIN_IN);
+  float voltage = relayPinIn * (5.0 / 1023.0);
+  Serial.print(F("Current voltage is ("));
+  Serial.print(voltage);
+  Serial.println(F(")"));
+  if (voltage < 2.0) {
+    Serial.println(F("RELAY NOT ACTIVATED"));
     halt();
     return;
   }
@@ -180,13 +197,13 @@ void loop() {
   Serial.println(F("Write finished"));
 
   // Send signal to relay pin
-  Serial.println(F("SENDING RELAY SIGNAL HIGH (1000 ms)"));
-  digitalWrite(RELAY_PIN, HIGH);
+  Serial.println(F("SENDING RELAY SIGNAL HIGH (500 ms)"));
+  digitalWrite(RELAY_PIN_OUT, HIGH);
 
   // Stop signal to relay PIN
-  delay(1000);
+  delay(500);
   Serial.println(F("SENDING RELAY SIGNAL LOW"));
-  digitalWrite(RELAY_PIN, LOW);
+  digitalWrite(RELAY_PIN_OUT, LOW);
 
   // Read data from the block
   Serial.print(F("Reading amount from card (block "));

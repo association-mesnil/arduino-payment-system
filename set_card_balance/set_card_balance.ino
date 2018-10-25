@@ -30,9 +30,6 @@ MFRC522 mfrc522(SS_PIN, RST_PIN);
 // Authentication key
 MFRC522::MIFARE_Key key;
 
-// Card amount (WARNING: cannot be bigger then 255)
-const int amount = 3;
-
 // Blocks to write (WARNING: be careful where you write)
 const byte block = 4;
 const byte trailerBlock = 7;
@@ -86,14 +83,6 @@ void loop() {
   Serial.println(F("A new card has appeared"));
   Serial.println(F("-----------------------------------------------------"));
 
-  // Check amount value
-  if (amount > 255 || amount < 0) {
-    Serial.print(F("Invalid amount, must be in [0, 255]: "));
-    Serial.println(amount);
-    halt();
-    return;
-  }
-
   // Check block value
   if (block != 4) {
     Serial.print(F("Invalid block, are you sure you want to change it?: "));
@@ -130,6 +119,44 @@ void loop() {
     Serial.println(F("PCD_Authenticate() failed: "));
     Serial.println(mfrc522.GetStatusCodeName(status));
     return;
+  }
+
+  // Read data from the block
+  Serial.print(F("Reading balance from card (block "));
+  Serial.print(block);
+  Serial.println(F(")"));
+  status = (MFRC522::StatusCode) mfrc522.MIFARE_Read(block, buffer, &size);
+  if (status != MFRC522::STATUS_OK) {
+    Serial.print(F("MIFARE_Read() failed: "));
+    Serial.println(mfrc522.GetStatusCodeName(status));
+  }
+  dump_byte_array_decimal(buffer, 16);
+  dump_byte_array(buffer, 16);
+
+  // Read amount from serial
+  String amountString;
+  if (Serial.available() > 0) {
+    amountString = Serial.readString();
+    Serial.print(F("AMOUNT ENTERED: "));
+    Serial.print(amountString);
+  } else {
+    Serial.println(F("ENTER AMOUNT IN SEND"));
+    halt();
+    return;
+  }
+
+  // Convert to int
+  int amount = amountString.toInt();
+
+  // Check amount value
+  if (amount > 20 || amount < 0) {
+    Serial.print(F("Invalid amount, must be in [0, 20]: "));
+    Serial.println(amount);
+    halt();
+    return;
+  } else {
+    Serial.print(F("Setting amount: "));
+    Serial.println(amount);
   }
 
   // Write data to the block
