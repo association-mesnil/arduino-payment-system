@@ -1,4 +1,9 @@
 //#include <SPI.h>
+#include <SoftwareSerial.h>  //Software Serial Port  
+
+#define RXD 5 
+#define TXD 6
+SoftwareSerial BTSerie(RXD,TXD);  
 
 #define PAYOUT_PIN 2
 #define RESET_PIN 3
@@ -21,6 +26,12 @@ void setup() {
   // Init SPI bus
   // SPI.begin();
 
+
+  pinMode(RXD, INPUT);  
+  pinMode(TXD, OUTPUT);  
+  // BTSerie.begin(38400);  // AT mode
+  BTSerie.begin(9600);  // communication mode 
+
   // Sets output pins
   pinMode(PAYOUT_PIN, OUTPUT);
   pinMode(RESET_PIN, OUTPUT);
@@ -32,10 +43,24 @@ void setup() {
 }
 
 void loop() {
+
+  if (BTSerie.available()) {  
+    readStream = BTSerie.readString();
+    Serial.println("I received from bt: \'" + readStream + "\'");
+    
+    if (readStream == "*12|99|99|dispense#" || readStream == "dispense") {
+      // *12|99|99|dispense# from ArduDroid
+      Serial.println("Dispensing card");
+      dispendCard();
+    }
+    
+    delay(2000);
+  }  
+  
   while(Serial.available() > 0) {
     digitalWrite(13,HIGH);
     readStream = Serial.readString();
-    Serial.println("I received: \'" + readStream + "\'");
+    Serial.println("I received from USB: \'" + readStream + "\'");
     
     if (readStream == "dispense\n" || readStream == "dispense") {
       Serial.println("Dispensing card");
